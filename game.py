@@ -28,6 +28,8 @@ small_words = ["cat", "run", "dog", "map", "sun", "pen"]
 big_words = ["python", "rocket", "banana", "galaxy", "amazing"]
 town_buildings = []  # To store pre-generated layout
 grounds = []  # To store ground images
+current_input = ''
+
 
 building_images = [
     pygame.image.load("assets/building_1.png").convert_alpha(),
@@ -45,7 +47,7 @@ missile_images = {
 ground_image=pygame.image.load("assets/ground.png").convert_alpha()
 
 
-TOWN_Y = HEIGHT
+TOWN_Y = HEIGHT-30
 class Bomb:
     def __init__(self, text, x, speed, image_type, dx=0,dy=1,angle=0):
         self.text = text
@@ -106,7 +108,7 @@ class Bomb:
 def generate_town():
     global town_buildings
     x = 0
-    max_building_height = 200
+    max_building_height = 150
     town_buildings = []
 
     while x < WIDTH:
@@ -123,7 +125,7 @@ def generate_ground():
     x = 0
     while x < WIDTH:
         ground = pygame.transform.scale(ground_image, (ground_image.get_width(), ground_image.get_height()))
-        grounds.append((ground, x, TOWN_Y - ground.get_height()+40))
+        grounds.append((ground, x, TOWN_Y - ground.get_height()+50))
         x += ground.get_width()
     # Generate ground images
 
@@ -248,7 +250,7 @@ def spawn_bomb(difficulty, tick):
     if min_x >= max_x:
         x = WIDTH // 2  # fallback to center if no safe zone
         dx = 1
-        
+
     else:
         x = random.randint(min_x, max_x)
 
@@ -271,10 +273,37 @@ def pause_menu():
                     return  # Resume the game
                 elif event.key == pygame.K_q:
                     return 'quit'  # Quit to main menu
+                
+def draw_rounded_rect(surface, color, rect, radius):
+    # Draw the rounded corners
+    pygame.draw.rect(surface, color, rect, border_radius=radius)
+    pygame.draw.circle(surface, color, (rect.left + radius, rect.top + radius), radius)
+    pygame.draw.circle(surface, color, (rect.right - radius, rect.top + radius), radius)
+    pygame.draw.circle(surface, color, (rect.left + radius, rect.bottom - radius), radius)
+    pygame.draw.circle(surface, color, (rect.right - radius, rect.bottom - radius), radius)
+
+def handle_input(event):
+    global current_input, backspace_pressed
+    if event.type == pygame.KEYDOWN:
+        if event.key == pygame.K_BACKSPACE:
+            current_input = current_input[:-1]  # Remove last character
+        elif event.key == pygame.K_RETURN:
+            # Handle enter key action, like submitting the input
+            current_input = ''  # Clear input after pressing enter
+        elif event.unicode.isprintable():  # Only allow printable characters
+            current_input += event.unicode.lower()
+        elif event.key == pygame.K_ESCAPE:
+            if pause_menu() == 'quit':
+                return 'quit'
+
+    if event.type == pygame.KEYUP:
+        if event.key == pygame.K_BACKSPACE:
+            backspace_pressed = False  # Stop backspace holding action
 
 def game_loop(difficulty):
     bombs = []
-    current_input = ''
+    global current_input
+    current_input=''
     score = 0
     lives = 99
     tick = 0
@@ -292,16 +321,9 @@ def game_loop(difficulty):
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_BACKSPACE:
-                    current_input = current_input[:-1]
-                elif event.key == pygame.K_RETURN:
-                    current_input = ''
-                elif event.key == pygame.K_ESCAPE:
-                    if pause_menu() == 'quit':  # Check if user wants to quit to main menu
-                        return
-                elif event.unicode.isprintable():
-                    current_input += event.unicode.lower()
+            elif event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+                if handle_input(event) == 'quit':
+                    return
             elif event.type == pygame.ACTIVEEVENT:
                 if event.state == 2 and event.gain == 0:  # Window focus lost
                     if pause_menu() == 'quit':  # Check if user wants to quit to main menu
@@ -326,8 +348,11 @@ def game_loop(difficulty):
         draw_town()
         hud_surface = font.render(f"Score: {score}  |  Lives: {lives}", True, BLACK)
         screen.blit(hud_surface, (20, 20))
-        input_surface = font.render(f"> {current_input}", True, RED)
-        screen.blit(input_surface, (20, HEIGHT - 80))
+        outer_rect= pygame.Rect((WIDTH/4), TOWN_Y-5 , WIDTH/2, 30)
+        
+        draw_rounded_rect(screen, (225,217,209), outer_rect, 10)
+        input_surface = font.render(f"{current_input}", True, RED)
+        screen.blit(input_surface, ((WIDTH/4)+10, TOWN_Y))
 
         pygame.display.flip()
         clock.tick(60)
