@@ -217,10 +217,13 @@ def spawn_bomb(difficulty, tick):
             angle = random.choice(angle_choices)
             dx = math.cos(angle) * 2
             dy = math.sin(angle) * 2
+    
             angle=math.degrees(angle)
             if(dx<0):
                 angle+=180
-            angle=angle%360
+                angle=angle%360
+            if(dx==0):
+                angle
 
     else:  # hard
         if random.random() < 0.5:
@@ -244,7 +247,8 @@ def spawn_bomb(difficulty, tick):
     # Safe spawn range
     if min_x >= max_x:
         x = WIDTH // 2  # fallback to center if no safe zone
-        dx = 0
+        dx = 1
+        
     else:
         x = random.randint(min_x, max_x)
 
