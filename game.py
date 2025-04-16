@@ -24,11 +24,25 @@ big_font = pygame.font.Font(None, 60)
 
 # Game variables
 letters = list("abcdefghijklmnopqrstuvwxyz")
-small_words = ["cat", "run", "dog", "map", "sun", "pen"]
+small_words = [
+    "and", "are", "arm", "ask", "ate", "bad", "bag", "bar", "bat", "bed",
+    "bee", "beg", "bet", "big", "bit", "box", "boy", "bus", "but", "can",
+    "cap", "car", "cat", "cop", "cow", "cry", "cup", "cut", "dad", "day",
+    "did", "dog", "dry", "ear", "eat", "egg", "end", "eye", "far", "fat",
+    "few", "fit", "fix", "fly", "fog", "for", "fun", "gas", "get", "got",
+    "gum", "guy", "had", "has", "hat", "her", "hey", "him", "his", "hot",
+    "how", "ice", "ink", "its", "jam", "jar", "jet", "job", "joy", "key",
+    "kid", "kit", "lab", "lad", "let", "lid", "lip", "log", "man", "map",
+    "mat", "may", "men", "mix", "mom", "net", "new", "not", "now", "off",
+    "oil", "old", "one", "our", "out", "pan", "pen", "pet", "pie", "pig"
+]
+
 big_words = ["python", "rocket", "banana", "galaxy", "amazing"]
 town_buildings = []  # To store pre-generated layout
 grounds = []  # To store ground images
 current_input = ''
+explosions = []
+
 
 
 building_images = [
@@ -67,7 +81,7 @@ class Bomb:
     def update(self):
         self.y += self.speed
         self.x += self.dx  # Apply horizontal movement
-        if self.y + self.height >= TOWN_Y:
+        if self.y + self.height >= TOWN_Y-90:
             self.active = False
             return 'hit'
         return None
@@ -102,6 +116,29 @@ class Bomb:
             text_rect = text_surf.get_rect(center=(self.x + self.width // 2, self.y + self.height // 2+9))
             screen.blit(text_surf, text_rect)
 
+class Explosion:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.radius = 1
+        self.max_radius = 30
+        self.active = True
+        self.growth = 3
+        self.alpha = 255
+
+    def update(self):
+        if self.active:
+            self.radius += self.growth
+            self.alpha -= 15
+            if self.radius >= self.max_radius or self.alpha <= 0:
+                self.active = False
+
+    def draw(self, screen):
+        if self.active:
+            surf = pygame.Surface((self.max_radius * 2, self.max_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(surf, (255, 100, 0, self.alpha), (self.max_radius, self.max_radius), self.radius)
+            pygame.draw.circle(surf, (255, 255, 0, self.alpha), (self.max_radius, self.max_radius), self.radius // 2)
+            screen.blit(surf, (self.x - self.max_radius, self.y - self.max_radius))
 
 
 
@@ -190,21 +227,21 @@ def difficulty_menu():
                             return options[i].lower()
                         
 def spawn_bomb(difficulty, tick):
-    x = random.randint(50, WIDTH - 150)
+    x = random.randint(50, WIDTH - 200)
     dx = 0
     dy = 1
     angle= 0
 
     if difficulty == 'easy':
         text = random.choice(letters)
-        speed = 2
+        speed = 3
         img_type = 'letter'
         
 
     elif difficulty == 'medium':
         if random.random() < 0.6:
             text = random.choice(letters)
-            speed = 2 + tick // 500
+            speed = 3
             img_type = 'letter'
             
         else:
@@ -238,21 +275,21 @@ def spawn_bomb(difficulty, tick):
         dx = 0
 
     # Ensure bomb won't go off-screen by adjusting spawn x range
-    bomb_width = font.size(text)[0]
-    time_to_reach_ground = (TOWN_Y - 50) / speed  # approximate frames before hitting town
-    max_dx_distance = abs(dx * time_to_reach_ground)
+    if(img_type=='small'):
+        bomb_width = font.size(text)[0]
+        time_to_reach_ground = (TOWN_Y - 50) / speed  # approximate frames before hitting town
+        max_dx_distance = abs(dx * time_to_reach_ground)
 
     # Ensure bomb stays on screen horizontally
-    min_x = max(0, int(max_dx_distance))
-    max_x = min(WIDTH - bomb_width, int(WIDTH - max_dx_distance))
+        min_x = max(0, int(max_dx_distance))
+        max_x = min(WIDTH - bomb_width, int(WIDTH - max_dx_distance))
 
     # Safe spawn range
-    if min_x >= max_x:
-        x = WIDTH // 2  # fallback to center if no safe zone
-        dx = 1
-
-    else:
-        x = random.randint(min_x, max_x)
+        if min_x >= max_x:
+            x = WIDTH // 2  # fallback to center if no safe zone
+            dx = 1
+        else:
+            x = random.randint(min_x, max_x)
 
     return Bomb(text, x, speed, img_type, dx=dx, dy=dy, angle=angle)
 
@@ -305,9 +342,14 @@ def game_loop(difficulty):
     global current_input
     current_input=''
     score = 0
-    lives = 99
+    lives = 10
     tick = 0
-    spawn_interval = 60
+    if difficulty == 'easy':
+        spawn_interval = 60
+    elif difficulty == 'medium':
+        spawn_interval = 70
+    else:  # hard
+        spawn_interval = 70
 
     running = True
     while running:
@@ -332,18 +374,28 @@ def game_loop(difficulty):
         for bomb in bombs:
             result = bomb.update()
             if result == 'hit':
+                explosions.append(Explosion(bomb.x + bomb.width//2, bomb.y + bomb.height//2))
                 lives -= 1
 
         for bomb in bombs:
             if bomb.active and current_input == bomb.text:
+                explosions.append(Explosion(bomb.x + bomb.width//2, bomb.y + bomb.height//2))
                 bomb.active = False
                 current_input = ''
                 score += len(bomb.text)
+        
+        for explosion in explosions[:]:
+            explosion.update()
+            explosion.draw(screen)
+            if not explosion.active:
+                explosions.remove(explosion)
 
         bombs = [b for b in bombs if b.active]
 
         for bomb in bombs:
             bomb.draw()
+
+        
 
         draw_town()
         hud_surface = font.render(f"Score: {score}  |  Lives: {lives}", True, BLACK)
