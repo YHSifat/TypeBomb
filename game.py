@@ -8,7 +8,7 @@ pygame.init()
 # Screen setup
 WIDTH, HEIGHT = 1280, 720
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Type Defender")
+pygame.display.set_caption("Type Bomb")
 clock = pygame.time.Clock()
 
 # Colors
