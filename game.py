@@ -42,6 +42,7 @@ town_buildings = []  # To store pre-generated layout
 grounds = []  # To store ground images
 current_input = ''
 explosions = []
+score = 0
 
 
 
@@ -341,8 +342,9 @@ def game_loop(difficulty):
     bombs = []
     global current_input
     current_input=''
-    score = 0
-    lives = 10
+    global score
+    score = 0 
+    lives = 5
     tick = 0
     if difficulty == 'easy':
         spawn_interval = 60
@@ -419,7 +421,12 @@ def main():
         generate_ground()
         game_loop(difficulty)
         screen.fill(WHITE)
-        draw_text_center("Game Over! Press any key to return to menu", HEIGHT//2)
+        game_end = ["Game Over!",f"Score: {score}","Press any key to return to menu"]
+        for i, line in enumerate(game_end):
+            text_surface = big_font.render(line, True, BLACK)
+            text_rect = text_surface.get_rect(center=(WIDTH // 2, HEIGHT // 2 + i * 50))
+            screen.blit(text_surface, text_rect.topleft)
+        # draw_text_center(game_end, HEIGHT//2)
         pygame.display.flip()
         waiting = True
         while waiting:
